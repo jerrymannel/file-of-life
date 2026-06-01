@@ -214,8 +214,7 @@ function PrintContent({ d, activeConditions, activeMeds, formatDate }: PrintCont
         <div>
           {/* Emergency Contacts */}
           <PrintBlock title="Emergency Contacts">
-            {([0, 1] as const).map((idx) => {
-              const c = d.contacts[idx]
+            {d.contacts.map((c, idx) => {
               if (!c.name && !c.phone) return null
               return (
                 <div key={idx} style={{ marginBottom: '4px' }}>
