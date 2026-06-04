@@ -3,14 +3,15 @@ interface CheckboxFieldProps {
   id: string
   checked: boolean
   onChange: (checked: boolean) => void
+  disabled?: boolean
   className?: string
 }
 
-export function CheckboxField({ label, id, checked, onChange, className = '' }: CheckboxFieldProps) {
+export function CheckboxField({ label, id, checked, onChange, disabled = false, className = '' }: CheckboxFieldProps) {
   return (
     <label
       htmlFor={id}
-      className={`flex items-center gap-2 cursor-pointer group ${className}`}
+      className={`flex items-center gap-2 group ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
     >
       <div className="relative flex-shrink-0">
         <input
@@ -18,12 +19,15 @@ export function CheckboxField({ label, id, checked, onChange, className = '' }: 
           id={id}
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
+          disabled={disabled}
           className="sr-only"
         />
         <div
           className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
             checked
               ? 'bg-primary border-primary'
+              : disabled
+              ? 'bg-muted border-input'
               : 'bg-background border-input group-hover:border-primary/60'
           }`}
         >

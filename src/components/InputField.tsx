@@ -1,3 +1,40 @@
+export function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10)
+  if (digits.length < 4) return digits
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
+interface PhoneInputProps {
+  label: string
+  id: string
+  value: string
+  onChange: (value: string) => void
+  required?: boolean
+  className?: string
+}
+
+export function PhoneInput({ label, id, value, onChange, required, className = '' }: PhoneInputProps) {
+  return (
+    <div className={`flex flex-col gap-1 ${className}`}>
+      <label htmlFor={id} className="text-sm font-medium text-muted-foreground">
+        {label}
+        {required && <span className="text-destructive ml-0.5">*</span>}
+      </label>
+      <input
+        id={id}
+        type="tel"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(formatPhone(e.target.value))}
+        placeholder="(555) 000-0000"
+        required={required}
+        className="border border-input rounded-md px-3 py-2 bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 transition-shadow placeholder:text-muted-foreground/60"
+      />
+    </div>
+  )
+}
+
 interface InputFieldProps {
   label: string
   id: string

@@ -4,7 +4,7 @@ import { getRecord, saveRecord, updateRecord, getEditHistory } from '../db/datab
 import { createDefaultFormData } from '../types'
 import type { FormData, EditHistoryRow, EmergencyContact } from '../types'
 import { FormSection } from '../components/FormSection'
-import { InputField, TextareaField } from '../components/InputField'
+import { InputField, TextareaField, PhoneInput, formatPhone } from '../components/InputField'
 import { CheckboxField } from '../components/CheckboxField'
 import { EditHistoryPanel } from '../components/EditHistoryPanel'
 
@@ -141,10 +141,16 @@ export function FormPage() {
   }
 
   const updateCondition = (key: ConditionBoolKey, value: boolean) => {
-    setFormData((prev) => ({
-      ...prev,
-      conditions: { ...prev.conditions, [key]: value },
-    }))
+    setFormData((prev) => {
+      if (key === 'noKnownConditions' && value) {
+        // Clear everything else when "no known conditions" is selected
+        const cleared = Object.fromEntries(
+          Object.keys(prev.conditions).map((k) => [k, typeof prev.conditions[k as keyof typeof prev.conditions] === 'boolean' ? false : ''])
+        ) as unknown as typeof prev.conditions
+        return { ...prev, conditions: { ...cleared, noKnownConditions: true } }
+      }
+      return { ...prev, conditions: { ...prev.conditions, [key]: value } }
+    })
   }
 
   const updateConditionText = (key: 'hepatitisType' | 'other', value: string) => {
@@ -308,13 +314,11 @@ export function FormPage() {
             placeholder="Street, City, State ZIP"
             className="lg:col-span-2"
           />
-          <InputField
+          <PhoneInput
             label="Phone Number"
             id="phone"
             value={formData.phone}
             onChange={(v) => updateField('phone', v)}
-            placeholder="(555) 000-0000"
-            type="tel"
           />
           <InputField
             label="Date of Birth"
@@ -383,8 +387,9 @@ export function FormPage() {
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</label>
                   <input
                     type="tel"
+                    inputMode="numeric"
                     value={contact.phone}
-                    onChange={(e) => updateContact(idx, 'phone', e.target.value)}
+                    onChange={(e) => updateContact(idx, 'phone', formatPhone(e.target.value))}
                     placeholder="(555) 000-0000"
                     className={inputClass + ' w-full'}
                     aria-label={`Contact ${idx + 1} phone`}
@@ -568,60 +573,69 @@ export function FormPage() {
 
       {/* Section 5: Medical Conditions */}
       <FormSection title="Medical Conditions">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
-          {CONDITION_LABELS.map(([key, label]) => {
-            if (key === 'hepatitisType' || key === 'other') return null
-            const boolKey = key as ConditionBoolKey
-            return (
-              <CheckboxField
-                key={key}
-                id={`condition-${key}`}
-                label={label}
-                checked={formData.conditions[boolKey] as boolean}
-                onChange={(v) => updateCondition(boolKey, v)}
-              />
-            )
-          })}
-          {/* Hepatitis with inline type input */}
-          <div className="flex items-center gap-2">
-            <CheckboxField
-              id="condition-hepatitis"
-              label="Hepatitis Type"
-              checked={formData.conditions.hepatitisType !== ''}
-              onChange={(v) => updateConditionText('hepatitisType', v ? 'A' : '')}
-            />
-            {formData.conditions.hepatitisType !== '' && (
-              <input
-                type="text"
-                value={formData.conditions.hepatitisType}
-                onChange={(e) => updateConditionText('hepatitisType', e.target.value)}
-                placeholder="A/B/C"
-                maxLength={1}
-                className="w-14 border border-input rounded px-2 py-1 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
-                aria-label="Hepatitis type"
-              />
-            )}
-          </div>
-          {/* Other with text input */}
-          <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-1">
-            <CheckboxField
-              id="condition-other"
-              label="Other:"
-              checked={formData.conditions.other !== ''}
-              onChange={(v) => updateConditionText('other', v ? ' ' : '')}
-            />
-            {formData.conditions.other !== '' && (
-              <input
-                type="text"
-                value={formData.conditions.other.trim()}
-                onChange={(e) => updateConditionText('other', e.target.value || ' ')}
-                placeholder="Specify..."
-                className="flex-1 border border-input rounded px-2 py-1 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
-                aria-label="Other condition"
-              />
-            )}
-          </div>
-        </div>
+        {(() => {
+          const noKnown = formData.conditions.noKnownConditions
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+              {CONDITION_LABELS.map(([key, label]) => {
+                if (key === 'hepatitisType' || key === 'other') return null
+                const boolKey = key as ConditionBoolKey
+                const isNoKnownKey = boolKey === 'noKnownConditions'
+                return (
+                  <CheckboxField
+                    key={key}
+                    id={`condition-${key}`}
+                    label={label}
+                    checked={formData.conditions[boolKey] as boolean}
+                    onChange={(v) => updateCondition(boolKey, v)}
+                    disabled={!isNoKnownKey && noKnown}
+                  />
+                )
+              })}
+              {/* Hepatitis with inline type input */}
+              <div className="flex items-center gap-2">
+                <CheckboxField
+                  id="condition-hepatitis"
+                  label="Hepatitis Type"
+                  checked={formData.conditions.hepatitisType !== ''}
+                  onChange={(v) => updateConditionText('hepatitisType', v ? 'A' : '')}
+                  disabled={noKnown}
+                />
+                {formData.conditions.hepatitisType !== '' && !noKnown && (
+                  <input
+                    type="text"
+                    value={formData.conditions.hepatitisType}
+                    onChange={(e) => updateConditionText('hepatitisType', e.target.value)}
+                    placeholder="A/B/C"
+                    maxLength={1}
+                    className="w-14 border border-input rounded px-2 py-1 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+                    aria-label="Hepatitis type"
+                  />
+                )}
+              </div>
+              {/* Other with text input */}
+              <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-1">
+                <CheckboxField
+                  id="condition-other"
+                  label="Other:"
+                  checked={formData.conditions.other !== ''}
+                  onChange={(v) => updateConditionText('other', v ? ' ' : '')}
+                  disabled={noKnown}
+                />
+                {formData.conditions.other !== '' && !noKnown && (
+                  <input
+                    type="text"
+                    value={formData.conditions.other.trim()}
+                    onChange={(e) => updateConditionText('other', e.target.value || ' ')}
+                    placeholder="Specify..."
+                    className="flex-1 border border-input rounded px-2 py-1 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+                    aria-label="Other condition"
+                  />
+                )}
+              </div>
+            </div>
+          )
+        })()}
       </FormSection>
 
       {/* Section 6: Allergies */}
